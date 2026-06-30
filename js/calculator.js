@@ -35,7 +35,23 @@ const results = {
   legendRemain: document.getElementById('legend-remain'),
 };
 
+// New summary table elements
+const summary = {
+  purchase: document.getElementById('sum-purchase'),
+  stop: document.getElementById('sum-stop'),
+  expiry: document.getElementById('sum-expiry'),
+  originalPrice: document.getElementById('sum-original-price'),
+  totalDays: document.getElementById('sum-total-days'),
+  usedDays: document.getElementById('sum-used-days'),
+  remainingDays: document.getElementById('sum-remaining-days'),
+  usedPct: document.getElementById('sum-used-pct'),
+  usedFee: document.getElementById('sum-used-fee'),
+  refundAmount: document.getElementById('sum-refund-amount'),
+  refundPct: document.getElementById('sum-refund-pct'),
+};
+
 let lastRefundRaw = 0;
+let lastSummaryData = null; // store for copy function
 
 function parseDateString(dateStr) {
   const [year, month, day] = dateStr.split('-').map(Number);
@@ -196,10 +212,39 @@ function showResults(data, purchase, expiry, stop) {
   results.usedFee.textContent = formatVND(data.usedFee);
   results.refundAmount.textContent = formatVND(data.refundAmount);
 
-  const pct = data.totalDays > 0 ? ((data.remainingDays / data.totalDays) * 100).toFixed(1) : 0;
-  results.refundPct.textContent = `Hoàn ${pct}% giá trị gói còn lại`;
+  const refundPct = data.totalDays > 0 ? ((data.remainingDays / data.totalDays) * 100).toFixed(1) : 0;
+  results.refundPct.textContent = `Hoàn ${refundPct}% giá trị gói còn lại`;
 
   updateTimeline(data, purchase, expiry, stop);
+
+  // Populate summary table (for customer copy)
+  const usedPct = data.totalDays > 0 ? ((data.usedDays / data.totalDays) * 100).toFixed(1) : 0;
+  const originalPrice = data.usedFee + data.refundAmount;
+  const nowStr = getNowVN();
+
+  summary.purchase.textContent = formatVNDate(purchase);
+  summary.stop.textContent = formatVNDate(stop);
+  summary.expiry.textContent = formatVNDate(expiry);
+  summary.originalPrice.textContent = formatVND(originalPrice);
+  summary.totalDays.textContent = `${data.totalDays} ngày`;
+  summary.usedDays.textContent = `${data.usedDays} ngày`;
+  summary.remainingDays.textContent = `${data.remainingDays} ngày`;
+  summary.usedPct.textContent = `${usedPct}%`;
+  summary.usedFee.textContent = formatVND(data.usedFee);
+  summary.refundAmount.textContent = formatVND(data.refundAmount);
+  summary.refundPct.textContent = `${refundPct}%`;
+
+  // Save data for copy
+  lastSummaryData = {
+    purchase, stop, expiry,
+    totalDays: data.totalDays,
+    usedDays: data.usedDays,
+    remainingDays: data.remainingDays,
+    usedPct, refundPct,
+    usedFee: data.usedFee,
+    refundAmount: data.refundAmount,
+    calculatedAt: nowStr
+  };
 
   resultEmpty.hidden = true;
   resultContent.hidden = false;
@@ -208,6 +253,7 @@ function showResults(data, purchase, expiry, stop) {
 function hideResults() {
   resultEmpty.hidden = false;
   resultContent.hidden = true;
+  lastSummaryData = null;
 }
 
 function tryCalculate() {
@@ -276,6 +322,7 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   form.reset();
   clearError();
   hideResults();
+  lastRefundRaw = 0;
   Object.values(hints).forEach((h) => {
     h.textContent = '';
     h.classList.remove('active');
@@ -291,6 +338,47 @@ document.getElementById('btn-copy').addEventListener('click', async () => {
     setTimeout(() => btn.classList.remove('copied'), 2000);
   } catch {
     showError('Không thể sao chép — hãy chọn và copy thủ công.');
+  }
+});
+
+// Format full summary for quick customer copy
+function formatSummaryText(data) {
+  if (!data) return '';
+  const originalPrice = data.usedFee + data.refundAmount;
+  return [
+    '=== KẾT QUẢ HOÀN TIỀN (Refund Tool) ===',
+    `Ngày mua: ${formatVNDate(data.purchase)}`,
+    `Ngày dừng sử dụng: ${formatVNDate(data.stop)}`,
+    `Ngày hết hạn gói: ${formatVNDate(data.expiry)}`,
+    '',
+    `Tổng giá trị gói: ${formatVND(originalPrice)}`,
+    `Tổng thời gian gói: ${data.totalDays} ngày`,
+    `Đã sử dụng: ${data.usedDays} ngày (${data.usedPct}%)`,
+    `Còn lại: ${data.remainingDays} ngày`,
+    '',
+    `Phí đã dùng: ${formatVND(data.usedFee)}`,
+    `Số tiền hoàn trả: ${formatVND(data.refundAmount)}`,
+    `Tỷ lệ hoàn tiền: ${data.refundPct}%`,
+    '',
+    `Cập nhật: ${data.calculatedAt}`,
+    '====================================='
+  ].join('\n');
+}
+
+document.getElementById('btn-copy-summary').addEventListener('click', async () => {
+  if (!lastSummaryData) return;
+
+  const text = formatSummaryText(lastSummaryData);
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('btn-copy-summary');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '✓ Đã copy!';
+    setTimeout(() => {
+      btn.innerHTML = originalText;
+    }, 1800);
+  } catch {
+    showError('Không thể sao chép. Vui lòng copy thủ công.');
   }
 });
 

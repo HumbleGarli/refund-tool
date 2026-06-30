@@ -164,6 +164,38 @@
             </div>
             <span class="refund-pct" id="refund-pct"></span>
           </div>
+
+          <!-- Bảng tóm tắt đầy đủ - dễ copy gửi khách -->
+          <div class="summary-section">
+            <div class="summary-header">
+              <span class="summary-title">Bảng tóm tắt gửi khách hàng</span>
+              <button type="button" class="btn-copy-summary" id="btn-copy-summary" title="Sao chép toàn bộ tóm tắt">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                  <rect x="9" y="9" width="13" height="13" rx="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                Copy tóm tắt
+              </button>
+            </div>
+
+            <table class="result-table">
+              <tbody>
+                <tr><td>Ngày mua</td><td id="sum-purchase"></td></tr>
+                <tr><td>Ngày dừng sử dụng</td><td id="sum-stop"></td></tr>
+                <tr><td>Ngày hết hạn gói</td><td id="sum-expiry"></td></tr>
+                <tr><td>Tổng giá trị gói</td><td id="sum-original-price"></td></tr>
+                <tr><td>Tổng thời gian gói</td><td id="sum-total-days"></td></tr>
+                <tr><td>Đã sử dụng</td><td id="sum-used-days"></td></tr>
+                <tr><td>Còn lại</td><td id="sum-remaining-days"></td></tr>
+                <tr><td>Tỷ lệ đã dùng</td><td id="sum-used-pct"></td></tr>
+                <tr><td>Phí đã dùng</td><td id="sum-used-fee"></td></tr>
+                <tr><td><strong>Số tiền hoàn trả</strong></td><td id="sum-refund-amount"></td></tr>
+                <tr><td>Tỷ lệ hoàn tiền</td><td id="sum-refund-pct"></td></tr>
+              </tbody>
+            </table>
+
+            <div class="summary-note">💡 Copy bảng này gửi khách hàng nhanh chóng</div>
+          </div>
         </div>
       </aside>
     </div>
