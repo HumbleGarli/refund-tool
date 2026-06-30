@@ -285,6 +285,28 @@ function addDaysToDate(dateStr, days) {
   return toInputDate(dayNum);
 }
 
+function setCustomExpiry(purchase, value, unit) {
+  if (!purchase || !value) return null;
+  const num = parseInt(value);
+  if (isNaN(num) || num < 1) return null;
+
+  // Use native Date for months/years accuracy
+  const d = new Date(purchase + 'T00:00:00'); // local to avoid tz issues somewhat
+
+  if (unit === 'day') {
+    d.setDate(d.getDate() + num);
+  } else if (unit === 'month') {
+    d.setMonth(d.getMonth() + num);
+  } else if (unit === 'year') {
+    d.setFullYear(d.getFullYear() + num);
+  }
+
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 fields.totalPrice.addEventListener('input', (e) => {
   const cursorPos = e.target.selectionStart;
   const oldLen = e.target.value.length;
@@ -311,6 +333,42 @@ document.querySelectorAll('.chip').forEach((chip) => {
     fields.expiryDate.value = addDaysToDate(purchase, days);
     tryCalculate();
   });
+});
+
+// Custom duration input
+const customDurationInput = document.getElementById('custom-duration');
+const customUnitSelect = document.getElementById('custom-unit');
+const btnCustomDuration = document.getElementById('btn-custom-duration');
+
+function applyCustomDuration() {
+  const purchase = fields.purchaseDate.value;
+  const value = customDurationInput.value;
+  const unit = customUnitSelect.value;
+
+  if (!purchase) {
+    showError('Hãy chọn ngày mua trước khi nhập gói nhanh.');
+    fields.purchaseDate.focus();
+    return;
+  }
+  if (!value || parseInt(value) < 1) {
+    showError('Vui lòng nhập số lượng hợp lệ.');
+    return;
+  }
+
+  const newExpiry = setCustomExpiry(purchase, value, unit);
+  if (newExpiry) {
+    fields.expiryDate.value = newExpiry;
+    tryCalculate();
+  }
+}
+
+btnCustomDuration.addEventListener('click', applyCustomDuration);
+
+customDurationInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    applyCustomDuration();
+  }
 });
 
 document.getElementById('btn-today').addEventListener('click', () => {

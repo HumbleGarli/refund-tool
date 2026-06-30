@@ -79,7 +79,7 @@ body {
 
 @media (min-width: 860px) {
   .workspace {
-    grid-template-columns: 1fr 440px;
+    grid-template-columns: 1fr 480px;
     align-items: start;
   }
 
@@ -314,6 +314,47 @@ body {
   transform: scale(0.97);
 }
 
+/* Custom duration input */
+.custom-duration {
+  margin-top: 0.75rem;
+}
+
+.custom-duration-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.custom-duration-row input,
+.custom-duration-row select {
+  padding: 0.35rem 0.5rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  background: var(--surface);
+}
+
+.custom-duration-row select {
+  min-width: 70px;
+}
+
+.btn-custom {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--primary-light);
+  color: var(--primary);
+  border: 1.5px solid #bfdbfe;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-custom:hover {
+  background: #dbeafe;
+}
+
 .btn-today {
   display: inline-flex;
   align-items: center;
@@ -424,9 +465,11 @@ body {
 
 .result-body {
   display: flex;
-  gap: 0.65rem;
+  gap: 1rem;
   flex: 1;
   min-height: 0;
+  justify-content: space-between;
+  padding: 0 0.25rem;
 }
 
 .result-visuals {
@@ -640,12 +683,12 @@ body {
 
 /* Summary table positioned on the RIGHT side */
 .summary-section {
-  width: 145px;
+  width: 170px;
   flex-shrink: 0;
   background: #f8fafc;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 0.55rem 0.4rem;
+  padding: 0.6rem 0.5rem;
   font-size: 0.72rem;
   overflow: hidden;
 }
@@ -693,7 +736,7 @@ body {
 .result-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.66rem;
+  font-size: 0.7rem;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -702,10 +745,10 @@ body {
 }
 
 .result-table td {
-  padding: 3px 5px;
+  padding: 4px 6px;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .result-table tr:last-child td {

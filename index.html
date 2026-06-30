@@ -51,6 +51,20 @@
                 <button type="button" class="chip" data-days="180">6 tháng</button>
                 <button type="button" class="chip" data-days="365">1 năm</button>
               </div>
+
+              <!-- Nhập nhanh tùy chỉnh số ngày/tháng/năm -->
+              <div class="custom-duration">
+                <span class="quick-label">Hoặc nhập tùy chỉnh:</span>
+                <div class="custom-duration-row">
+                  <input type="number" id="custom-duration" min="1" step="1" placeholder="Số" style="width: 60px;">
+                  <select id="custom-unit">
+                    <option value="day">ngày</option>
+                    <option value="month">tháng</option>
+                    <option value="year">năm</option>
+                  </select>
+                  <button type="button" class="btn-custom" id="btn-custom-duration">Đặt</button>
+                </div>
+              </div>
             </div>
           </section>
 
