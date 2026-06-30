@@ -118,83 +118,88 @@
             <p class="calculated-at" id="calculated-at"></p>
           </div>
 
-          <div class="timeline" aria-label="Tiến độ sử dụng gói">
-            <div class="timeline-labels">
-              <span id="tl-start">—</span>
-              <span id="tl-stop">—</span>
-              <span id="tl-end">—</span>
-            </div>
-            <div class="timeline-track">
-              <div class="timeline-used" id="timeline-used"></div>
-              <div class="timeline-marker" id="timeline-marker" title="Ngày dừng"></div>
-            </div>
-            <div class="timeline-legend">
-              <span class="legend-item"><i class="dot dot-used"></i> Đã dùng <strong id="legend-used">0</strong> ngày</span>
-              <span class="legend-item"><i class="dot dot-remain"></i> Còn lại <strong id="legend-remain">0</strong> ngày</span>
-            </div>
-          </div>
+          <div class="result-body">
+            <!-- Phần chính bên trái: timeline + stats + refund -->
+            <div class="result-visuals">
+              <div class="timeline" aria-label="Tiến độ sử dụng gói">
+                <div class="timeline-labels">
+                  <span id="tl-start">—</span>
+                  <span id="tl-stop">—</span>
+                  <span id="tl-end">—</span>
+                </div>
+                <div class="timeline-track">
+                  <div class="timeline-used" id="timeline-used"></div>
+                  <div class="timeline-marker" id="timeline-marker" title="Ngày dừng"></div>
+                </div>
+                <div class="timeline-legend">
+                  <span class="legend-item"><i class="dot dot-used"></i> Đã dùng <strong id="legend-used">0</strong> ngày</span>
+                  <span class="legend-item"><i class="dot dot-remain"></i> Còn lại <strong id="legend-remain">0</strong> ngày</span>
+                </div>
+              </div>
 
-          <div class="stat-grid">
-            <div class="stat-card">
-              <span class="stat-label">Tổng ngày gói</span>
-              <span class="stat-value" id="total-days">—</span>
-            </div>
-            <div class="stat-card">
-              <span class="stat-label">Đã sử dụng</span>
-              <span class="stat-value stat-used" id="used-days">—</span>
-            </div>
-            <div class="stat-card">
-              <span class="stat-label">Còn lại</span>
-              <span class="stat-value stat-remain" id="remaining-days">—</span>
-            </div>
-            <div class="stat-card">
-              <span class="stat-label">Phí đã dùng</span>
-              <span class="stat-value" id="used-fee">—</span>
-            </div>
-          </div>
+              <div class="stat-grid">
+                <div class="stat-card">
+                  <span class="stat-label">Tổng ngày gói</span>
+                  <span class="stat-value" id="total-days">—</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-label">Đã sử dụng</span>
+                  <span class="stat-value stat-used" id="used-days">—</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-label">Còn lại</span>
+                  <span class="stat-value stat-remain" id="remaining-days">—</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-label">Phí đã dùng</span>
+                  <span class="stat-value" id="used-fee">—</span>
+                </div>
+              </div>
 
-          <div class="refund-hero">
-            <span class="refund-label">Số tiền refund</span>
-            <div class="refund-row">
-              <span class="refund-amount" id="refund-amount">—</span>
-              <button type="button" class="btn-copy" id="btn-copy" title="Sao chép số tiền">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <span class="copy-text">Sao chép</span>
-              </button>
-            </div>
-            <span class="refund-pct" id="refund-pct"></span>
-          </div>
-
-          <!-- Bảng tóm tắt đầy đủ - dễ copy gửi khách -->
-          <div class="summary-section">
-            <div class="summary-header">
-              <span class="summary-title">Bảng tóm tắt gửi khách hàng</span>
-              <button type="button" class="btn-copy-summary" id="btn-copy-summary" title="Sao chép toàn bộ tóm tắt">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-                  <rect x="9" y="9" width="13" height="13" rx="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-                Copy tóm tắt
-              </button>
+              <div class="refund-hero">
+                <span class="refund-label">Số tiền refund</span>
+                <div class="refund-row">
+                  <span class="refund-amount" id="refund-amount">—</span>
+                  <button type="button" class="btn-copy" id="btn-copy" title="Sao chép số tiền">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    <span class="copy-text">Sao chép</span>
+                  </button>
+                </div>
+                <span class="refund-pct" id="refund-pct"></span>
+              </div>
             </div>
 
-            <table class="result-table">
-              <tbody>
-                <tr><td>Ngày mua</td><td id="sum-purchase"></td></tr>
-                <tr><td>Ngày dừng sử dụng</td><td id="sum-stop"></td></tr>
-                <tr><td>Ngày hết hạn gói</td><td id="sum-expiry"></td></tr>
-                <tr><td>Tổng giá trị gói</td><td id="sum-original-price"></td></tr>
-                <tr><td>Tổng thời gian gói</td><td id="sum-total-days"></td></tr>
-                <tr><td>Đã sử dụng</td><td id="sum-used-days"></td></tr>
-                <tr><td>Còn lại</td><td id="sum-remaining-days"></td></tr>
-                <tr><td>Tỷ lệ đã dùng</td><td id="sum-used-pct"></td></tr>
-                <tr><td>Phí đã dùng</td><td id="sum-used-fee"></td></tr>
-                <tr><td><strong>Số tiền hoàn trả</strong></td><td id="sum-refund-amount"></td></tr>
-                <tr><td>Tỷ lệ hoàn tiền</td><td id="sum-refund-pct"></td></tr>
-              </tbody>
-            </table>
+            <!-- Bảng tóm tắt nằm BÊN PHẢI -->
+            <div class="summary-section">
+              <div class="summary-header">
+                <span class="summary-title">Bảng tóm tắt</span>
+                <button type="button" class="btn-copy-summary" id="btn-copy-summary" title="Sao chép toàn bộ tóm tắt">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <rect x="9" y="9" width="13" height="13" rx="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                  Copy
+                </button>
+              </div>
 
-            <div class="summary-note">💡 Copy bảng này gửi khách hàng nhanh chóng</div>
+              <table class="result-table">
+                <tbody>
+                  <tr><td>Ngày mua</td><td id="sum-purchase"></td></tr>
+                  <tr><td>Ngày dừng</td><td id="sum-stop"></td></tr>
+                  <tr><td>Ngày hết hạn</td><td id="sum-expiry"></td></tr>
+                  <tr><td>Tổng giá trị</td><td id="sum-original-price"></td></tr>
+                  <tr><td>Tổng ngày</td><td id="sum-total-days"></td></tr>
+                  <tr><td>Đã dùng</td><td id="sum-used-days"></td></tr>
+                  <tr><td>Còn lại</td><td id="sum-remaining-days"></td></tr>
+                  <tr><td>Tỷ lệ dùng</td><td id="sum-used-pct"></td></tr>
+                  <tr><td>Phí đã dùng</td><td id="sum-used-fee"></td></tr>
+                  <tr><td><strong>Hoàn trả</strong></td><td id="sum-refund-amount"></td></tr>
+                  <tr><td>Tỷ lệ hoàn</td><td id="sum-refund-pct"></td></tr>
+                </tbody>
+              </table>
+
+              <div class="summary-note">💡 Copy gửi khách</div>
+            </div>
           </div>
         </div>
       </aside>
