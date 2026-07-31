@@ -287,18 +287,24 @@ function addDaysToDate(dateStr, days) {
 
 function setCustomExpiry(purchase, value, unit) {
   if (!purchase || !value) return null;
-  const num = parseInt(value);
+  const num = parseInt(value, 10);
   if (isNaN(num) || num < 1) return null;
 
-  // Use native Date for months/years accuracy
-  const d = new Date(purchase + 'T00:00:00'); // local to avoid tz issues somewhat
-
+  // Day packages use inclusive counting (same as chip presets / addDaysToDate):
+  // purchase 05/05 + 90 ngày → expiry 02/08 (90 days total), not 03/08.
   if (unit === 'day') {
-    d.setDate(d.getDate() + num);
-  } else if (unit === 'month') {
+    return addDaysToDate(purchase, num);
+  }
+
+  // Months/years: calendar arithmetic from purchase date
+  const d = new Date(purchase + 'T00:00:00');
+
+  if (unit === 'month') {
     d.setMonth(d.getMonth() + num);
   } else if (unit === 'year') {
     d.setFullYear(d.getFullYear() + num);
+  } else {
+    return null;
   }
 
   const y = d.getFullYear();
