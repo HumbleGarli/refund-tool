@@ -1,455 +1,551 @@
-const TIMEZONE = 'Asia/Ho_Chi_Minh';
+/* Refund Tool — static export logic (no dependencies).
+   Business logic is a 1:1 port of the approved React version. */
+(function () {
+  "use strict";
 
-const form = document.getElementById('refund-form');
-const errorEl = document.getElementById('error-message');
-const resultEmpty = document.getElementById('result-empty');
-const resultContent = document.getElementById('result-content');
+  var TZ = "Asia/Ho_Chi_Minh";
+  var DAY = 86400000;
 
-const fields = {
-  purchaseDate: document.getElementById('purchase-date'),
-  expiryDate: document.getElementById('expiry-date'),
-  stopDate: document.getElementById('stop-date'),
-  totalPrice: document.getElementById('total-price'),
-};
+  /* ---------- date / money helpers ---------- */
 
-const hints = {
-  purchase: document.getElementById('hint-purchase'),
-  expiry: document.getElementById('hint-expiry'),
-  stop: document.getElementById('hint-stop'),
-};
-
-const results = {
-  calculatedAt: document.getElementById('calculated-at'),
-  totalDays: document.getElementById('total-days'),
-  usedDays: document.getElementById('used-days'),
-  remainingDays: document.getElementById('remaining-days'),
-  usedFee: document.getElementById('used-fee'),
-  refundAmount: document.getElementById('refund-amount'),
-  refundPct: document.getElementById('refund-pct'),
-  tlStart: document.getElementById('tl-start'),
-  tlStop: document.getElementById('tl-stop'),
-  tlEnd: document.getElementById('tl-end'),
-  timelineUsed: document.getElementById('timeline-used'),
-  timelineMarker: document.getElementById('timeline-marker'),
-  legendUsed: document.getElementById('legend-used'),
-  legendRemain: document.getElementById('legend-remain'),
-};
-
-// New summary table elements
-const summary = {
-  purchase: document.getElementById('sum-purchase'),
-  stop: document.getElementById('sum-stop'),
-  expiry: document.getElementById('sum-expiry'),
-  originalPrice: document.getElementById('sum-original-price'),
-  totalDays: document.getElementById('sum-total-days'),
-  usedDays: document.getElementById('sum-used-days'),
-  remainingDays: document.getElementById('sum-remaining-days'),
-  usedPct: document.getElementById('sum-used-pct'),
-  usedFee: document.getElementById('sum-used-fee'),
-  refundAmount: document.getElementById('sum-refund-amount'),
-  refundPct: document.getElementById('sum-refund-pct'),
-};
-
-let lastRefundRaw = 0;
-let lastSummaryData = null; // store for copy function
-
-function parseDateString(dateStr) {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return { year, month, day };
-}
-
-function toDayNumber({ year, month, day }) {
-  return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
-}
-
-function daysBetweenInclusive(startStr, endStr) {
-  return toDayNumber(parseDateString(endStr)) - toDayNumber(parseDateString(startStr)) + 1;
-}
-
-function formatVND(amount) {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(Math.round(amount));
-}
-
-function formatVNDate(dateStr) {
-  const { year, month, day } = parseDateString(dateStr);
-  return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
-}
-
-function toInputDate(dayNum) {
-  const d = new Date(dayNum * 86400000);
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function getTodayVN() {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date());
-
-  const map = Object.fromEntries(parts.filter((p) => p.type !== 'literal').map((p) => [p.type, p.value]));
-  return `${map.year}-${map.month}-${map.day}`;
-}
-
-function getNowVN() {
-  return new Date().toLocaleString('vi-VN', {
-    timeZone: TIMEZONE,
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
-}
-
-function parsePriceInput(value) {
-  const cleaned = value.replace(/[^\d]/g, '');
-  if (!cleaned) return NaN;
-  return Number(cleaned);
-}
-
-function formatPriceInput(value) {
-  const num = parsePriceInput(value);
-  if (isNaN(num) || num === 0) return value.replace(/[^\d]/g, '');
-  return new Intl.NumberFormat('vi-VN').format(num);
-}
-
-function showError(message) {
-  errorEl.textContent = message;
-  errorEl.hidden = false;
-}
-
-function clearError() {
-  errorEl.hidden = true;
-  errorEl.textContent = '';
-}
-
-function validate(purchase, expiry, stop, price) {
-  if (!purchase || !expiry || !stop) {
-    return 'Vui lòng nhập đầy đủ các ngày.';
+  function todayVN() {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: TZ,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
   }
 
-  if (isNaN(price) || price <= 0) {
-    return 'Tổng giá trị gói phải lớn hơn 0.';
+  function parseDate(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return null;
+    var parts = value.split("-").map(Number);
+    var y = parts[0], m = parts[1], d = parts[2];
+    var ts = Date.UTC(y, m - 1, d);
+    var back = new Date(ts);
+    if (back.getUTCFullYear() !== y || back.getUTCMonth() !== m - 1 || back.getUTCDate() !== d) {
+      return null;
+    }
+    return ts;
   }
 
-  const purchaseDay = toDayNumber(parseDateString(purchase));
-  const expiryDay = toDayNumber(parseDateString(expiry));
-  const stopDay = toDayNumber(parseDateString(stop));
+  function diffDays(a, b) { return Math.round((b - a) / DAY); }
 
-  if (purchaseDay > stopDay) {
-    return 'Ngày dừng sử dụng phải sau hoặc bằng ngày mua.';
+  function addDuration(value, amount, unit) {
+    var ts = parseDate(value);
+    if (ts === null || !isFinite(amount)) return "";
+    var d = new Date(ts);
+    if (unit === "day") {
+      // inclusive package: N days total => expiry = purchase + N - 1
+      d.setUTCDate(d.getUTCDate() + amount - 1);
+    } else if (unit === "month") {
+      // legacy source behaviour: plain calendar arithmetic, no minus-one-day
+      d.setUTCMonth(d.getUTCMonth() + amount);
+    } else {
+      d.setUTCFullYear(d.getUTCFullYear() + amount);
+    }
+    return d.toISOString().slice(0, 10);
   }
 
-  if (stopDay > expiryDay) {
-    return 'Ngày dừng sử dụng không được sau ngày hết hạn gói.';
+  function formatVND(n) {
+    return new Intl.NumberFormat("vi-VN").format(Math.round(n));
   }
 
-  if (purchaseDay > expiryDay) {
-    return 'Ngày hết hạn gói phải sau hoặc bằng ngày mua.';
+  function formatDateVN(value) {
+    var ts = parseDate(value);
+    if (ts === null) return "—";
+    var d = new Date(ts);
+    return (
+      String(d.getUTCDate()).padStart(2, "0") + "/" +
+      String(d.getUTCMonth() + 1).padStart(2, "0") + "/" +
+      d.getUTCFullYear()
+    );
   }
 
-  return null;
-}
-
-function calculateRefund(purchase, expiry, stop, price) {
-  const totalDays = daysBetweenInclusive(purchase, expiry);
-  const usedDays = daysBetweenInclusive(purchase, stop);
-  const remainingDays = totalDays - usedDays;
-  const usedFee = (usedDays / totalDays) * price;
-  const refundAmount = price - usedFee;
-
-  return { totalDays, usedDays, remainingDays, usedFee, refundAmount };
-}
-
-function updateHints(purchase, expiry, stop) {
-  hints.purchase.textContent = purchase ? formatVNDate(purchase) : '';
-  hints.purchase.classList.toggle('active', !!purchase);
-
-  if (purchase && expiry) {
-    const days = daysBetweenInclusive(purchase, expiry);
-    hints.expiry.textContent = `Gói ${days} ngày`;
-    hints.expiry.classList.add('active');
-  } else {
-    hints.expiry.textContent = expiry ? formatVNDate(expiry) : '';
-    hints.expiry.classList.toggle('active', !!expiry);
+  function parsePrice(raw) {
+    var digits = String(raw || "").replace(/[^\d]/g, "");
+    return digits ? Number(digits) : 0;
   }
 
-  if (purchase && stop) {
-    const used = daysBetweenInclusive(purchase, stop);
-    hints.stop.textContent = `Đã dùng ${used} ngày`;
-    hints.stop.classList.add('active');
-  } else {
-    hints.stop.textContent = stop ? formatVNDate(stop) : '';
-    hints.stop.classList.toggle('active', !!stop);
+  /* ---------- validation + calculation ---------- */
+
+  function validate(input) {
+    var errors = {};
+    var p = parseDate(input.purchaseDate);
+    var e = parseDate(input.expiryDate);
+    var s = parseDate(input.stopDate);
+
+    if (p === null) errors.purchase = "Vui lòng chọn ngày mua.";
+    if (e === null) errors.expiry = "Vui lòng chọn ngày hết hạn.";
+    if (s === null) errors.stop = "Vui lòng chọn ngày ngừng sử dụng.";
+    if (!(input.price > 0)) errors.price = "Giá gói phải lớn hơn 0.";
+
+    if (p !== null && e !== null && e < p) {
+      errors.expiry = "Ngày hết hạn phải từ ngày mua trở đi.";
+    }
+    if (p !== null && s !== null && s < p) {
+      errors.stop = "Ngày ngừng không thể trước ngày mua.";
+    }
+    if (e !== null && s !== null && s > e && !errors.stop) {
+      errors.stop = "Ngày ngừng không thể sau ngày hết hạn.";
+    }
+    return errors;
   }
-}
 
-function updateTimeline(data, purchase, expiry, stop) {
-  const pct = data.totalDays > 0 ? (data.usedDays / data.totalDays) * 100 : 0;
+  function calculate(input) {
+    if (Object.keys(validate(input)).length > 0) return null;
+    var p = parseDate(input.purchaseDate);
+    var e = parseDate(input.expiryDate);
+    var s = parseDate(input.stopDate);
 
-  results.tlStart.textContent = formatVNDate(purchase);
-  results.tlStop.textContent = formatVNDate(stop);
-  results.tlEnd.textContent = formatVNDate(expiry);
-  results.timelineUsed.style.width = `${pct}%`;
-  results.timelineMarker.style.left = `${Math.min(pct, 100)}%`;
-  results.legendUsed.textContent = data.usedDays;
-  results.legendRemain.textContent = data.remainingDays;
-}
+    var totalDays = diffDays(p, e) + 1;
+    var usedDays = diffDays(p, s) + 1;
+    var remainingDays = totalDays - usedDays;
+    var usedFee = (usedDays / totalDays) * input.price;
+    var refund = input.price - usedFee;
 
-function showResults(data, purchase, expiry, stop) {
-  lastRefundRaw = data.refundAmount;
+    return {
+      totalDays: totalDays,
+      usedDays: usedDays,
+      remainingDays: remainingDays,
+      usedFee: usedFee,
+      refund: refund,
+      usedRatio: usedDays / totalDays,
+    };
+  }
 
-  results.calculatedAt.textContent = `Cập nhật: ${getNowVN()}`;
-  results.totalDays.textContent = `${data.totalDays} ngày`;
-  results.usedDays.textContent = `${data.usedDays} ngày`;
-  results.remainingDays.textContent = `${data.remainingDays} ngày`;
-  results.usedFee.textContent = formatVND(data.usedFee);
-  results.refundAmount.textContent = formatVND(data.refundAmount);
+  /* ---------- clipboard (two-tier) ---------- */
 
-  const refundPct = data.totalDays > 0 ? ((data.remainingDays / data.totalDays) * 100).toFixed(1) : 0;
-  results.refundPct.textContent = `Hoàn ${refundPct}% giá trị gói còn lại`;
+  function legacyCopy(text) {
+    if (typeof document === "undefined") return false;
+    var active = document.activeElement;
+    var textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.setAttribute("aria-hidden", "true");
+    var s = textarea.style;
+    s.position = "fixed"; s.top = "0"; s.left = "0";
+    s.width = "1px"; s.height = "1px"; s.padding = "0";
+    s.border = "none"; s.outline = "none"; s.boxShadow = "none";
+    s.background = "transparent"; s.opacity = "0"; s.pointerEvents = "none";
 
-  updateTimeline(data, purchase, expiry, stop);
+    document.body.appendChild(textarea);
+    var ok = false;
+    try {
+      textarea.focus({ preventScroll: true });
+      textarea.select();
+      textarea.setSelectionRange(0, text.length);
+      ok = document.execCommand("copy");
+    } catch (err) {
+      ok = false;
+    } finally {
+      document.body.removeChild(textarea);
+      if (active && typeof active.focus === "function") {
+        try { active.focus({ preventScroll: true }); } catch (e2) { /* ignore */ }
+      }
+    }
+    return ok;
+  }
 
-  // Populate summary table (for customer copy)
-  const usedPct = data.totalDays > 0 ? ((data.usedDays / data.totalDays) * 100).toFixed(1) : 0;
-  const originalPrice = data.usedFee + data.refundAmount;
-  const nowStr = getNowVN();
+  function copyText(text) {
+    if (!text) return Promise.resolve(false);
+    if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard
+        .writeText(text)
+        .then(function () { return true; })
+        .catch(function () { return legacyCopy(text); });
+    }
+    return Promise.resolve(legacyCopy(text));
+  }
 
-  summary.purchase.textContent = formatVNDate(purchase);
-  summary.stop.textContent = formatVNDate(stop);
-  summary.expiry.textContent = formatVNDate(expiry);
-  summary.originalPrice.textContent = formatVND(originalPrice);
-  summary.totalDays.textContent = `${data.totalDays} ngày`;
-  summary.usedDays.textContent = `${data.usedDays} ngày`;
-  summary.remainingDays.textContent = `${data.remainingDays} ngày`;
-  summary.usedPct.textContent = `${usedPct}%`;
-  summary.usedFee.textContent = formatVND(data.usedFee);
-  summary.refundAmount.textContent = formatVND(data.refundAmount);
-  summary.refundPct.textContent = `${refundPct}%`;
+  /* ---------- DOM wiring ---------- */
 
-  // Save data for copy
-  lastSummaryData = {
-    purchase, stop, expiry,
-    totalDays: data.totalDays,
-    usedDays: data.usedDays,
-    remainingDays: data.remainingDays,
-    usedPct, refundPct,
-    usedFee: data.usedFee,
-    refundAmount: data.refundAmount,
-    calculatedAt: nowStr
+  var $ = function (id) { return document.getElementById(id); };
+
+  var el = {
+    price: $("price"),
+    purchase: $("purchase"),
+    stop: $("stop"),
+    expiry: $("expiry"),
+    purchaseToday: $("purchase-today"),
+    stopToday: $("stop-today"),
+    presets: $("presets"),
+    customAmount: $("custom-amount"),
+    units: $("units"),
+    applyCustom: $("apply-custom"),
+    footNote: $("foot-note"),
+    priceMsg: $("price-msg"),
+    purchaseMsg: $("purchase-msg"),
+    stopMsg: $("stop-msg"),
+    expiryMsg: $("expiry-msg"),
+    amount: $("refund-amount"),
+    pct: $("refund-pct"),
+    resultSub: $("result-sub"),
+    usedVal: $("used-val"),
+    leftVal: $("left-val"),
+    track: $("track"),
+    trackFill: $("track-fill"),
+    trackKnob: $("track-knob"),
+    tlStart: $("tl-start"),
+    tlStop: $("tl-stop"),
+    tlEnd: $("tl-end"),
+    sPrice: $("s-price"),
+    sUsed: $("s-used"),
+    sTotal: $("s-total"),
+    sRefund: $("s-refund"),
+    copyAmount: $("copy-amount"),
+    copySummary: $("copy-summary"),
+    copySummaryText: $("copy-summary-text"),
+    reset: $("reset"),
+    stickyAmount: $("sticky-amount"),
+    stickyCopy: $("sticky-copy"),
+    toasts: $("toasts"),
   };
 
-  resultEmpty.hidden = true;
-  resultContent.hidden = false;
-}
+  var state = {
+    priceRaw: "",
+    customUnit: "day",
+    activePreset: null,
+    touched: {},
+  };
+  var timers = [];
+  var DEFAULT_NOTE =
+    "Kết quả được tính tự động; ngày mua và ngày ngừng đều được tính là ngày sử dụng.";
+  var PRICE_HINT = "Tổng số tiền khách đã thanh toán cho gói.";
 
-function hideResults() {
-  resultEmpty.hidden = false;
-  resultContent.hidden = true;
-  lastSummaryData = null;
-}
-
-function tryCalculate() {
-  const purchase = fields.purchaseDate.value;
-  const expiry = fields.expiryDate.value;
-  const stop = fields.stopDate.value;
-  const price = parsePriceInput(fields.totalPrice.value);
-
-  updateHints(purchase, expiry, stop);
-
-  const error = validate(purchase, expiry, stop, price);
-  if (error) {
-    if (purchase || expiry || stop || fields.totalPrice.value) {
-      showError(error);
-    } else {
-      clearError();
+  function toast(message, opts) {
+    opts = opts || {};
+    var node = document.createElement("div");
+    node.className = "toast" + (opts.type ? " is-" + opts.type : "");
+    var main = document.createElement("div");
+    main.textContent = message;
+    node.appendChild(main);
+    if (opts.description) {
+      var d = document.createElement("p");
+      d.className = "desc";
+      d.textContent = opts.description;
+      node.appendChild(d);
     }
-    hideResults();
-    return;
+    el.toasts.appendChild(node);
+    window.setTimeout(function () {
+      if (node.parentNode) node.parentNode.removeChild(node);
+    }, 2600);
   }
 
-  clearError();
-  const data = calculateRefund(purchase, expiry, stop, price);
-  showResults(data, purchase, expiry, stop);
-}
-
-function addDaysToDate(dateStr, days) {
-  const dayNum = toDayNumber(parseDateString(dateStr)) + days - 1;
-  return toInputDate(dayNum);
-}
-
-function setCustomExpiry(purchase, value, unit) {
-  if (!purchase || !value) return null;
-  const num = parseInt(value, 10);
-  if (isNaN(num) || num < 1) return null;
-
-  // Day packages use inclusive counting (same as chip presets / addDaysToDate):
-  // purchase 05/05 + 90 ngày → expiry 02/08 (90 days total), not 03/08.
-  if (unit === 'day') {
-    return addDaysToDate(purchase, num);
+  function setIconState(button, copied) {
+    var copyIco = button.querySelector(".ico-copy");
+    var checkIco = button.querySelector(".ico-check");
+    if (copyIco) copyIco.hidden = copied;
+    if (checkIco) checkIco.hidden = !copied;
   }
 
-  // Months/years: calendar arithmetic from purchase date
-  const d = new Date(purchase + 'T00:00:00');
-
-  if (unit === 'month') {
-    d.setMonth(d.getMonth() + num);
-  } else if (unit === 'year') {
-    d.setFullYear(d.getFullYear() + num);
-  } else {
-    return null;
+  function flashCopied(button, textNode, copiedLabel, normalLabel) {
+    setIconState(button, true);
+    if (textNode) textNode.textContent = copiedLabel;
+    var id = window.setTimeout(function () {
+      setIconState(button, false);
+      if (textNode) textNode.textContent = normalLabel;
+    }, 1800);
+    timers.push(id);
   }
 
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
+  function doCopy(text, onDone, label) {
+    copyText(text).then(function (ok) {
+      if (ok) {
+        if (onDone) onDone();
+        toast(label, { type: "success" });
+      } else {
+        toast("Không sao chép được", {
+          type: "error",
+          description: "Trình duyệt đã chặn quyền truy cập clipboard.",
+        });
+      }
+    });
+  }
 
-fields.totalPrice.addEventListener('input', (e) => {
-  const cursorPos = e.target.selectionStart;
-  const oldLen = e.target.value.length;
-  e.target.value = formatPriceInput(e.target.value);
-  const newLen = e.target.value.length;
-  e.target.setSelectionRange(Math.max(0, cursorPos + (newLen - oldLen)), Math.max(0, cursorPos + (newLen - oldLen)));
-  tryCalculate();
-});
+  function currentInput() {
+    return {
+      purchaseDate: el.purchase.value,
+      expiryDate: el.expiry.value,
+      stopDate: el.stop.value,
+      price: parsePrice(state.priceRaw),
+    };
+  }
 
-['purchaseDate', 'expiryDate', 'stopDate'].forEach((key) => {
-  fields[key].addEventListener('change', tryCalculate);
-  fields[key].addEventListener('input', tryCalculate);
-});
+  function summaryText(result, input) {
+    if (!result) return "";
+    return [
+      "TÍNH TIỀN HOÀN GÓI DỊCH VỤ",
+      "• Giá gói: " + formatVND(input.price) + " ₫",
+      "• Ngày mua: " + formatDateVN(input.purchaseDate),
+      "• Ngày hết hạn: " + formatDateVN(input.expiryDate),
+      "• Ngày ngừng sử dụng: " + formatDateVN(input.stopDate),
+      "• Tổng thời hạn: " + result.totalDays + " ngày",
+      "• Đã sử dụng: " + result.usedDays + " ngày (" + formatVND(result.usedFee) + " ₫)",
+      "• Còn lại: " + result.remainingDays + " ngày",
+      "➜ SỐ TIỀN HOÀN: " + formatVND(result.refund) + " ₫",
+    ].join("\n");
+  }
 
-document.querySelectorAll('.chip').forEach((chip) => {
-  chip.addEventListener('click', () => {
-    const purchase = fields.purchaseDate.value;
-    if (!purchase) {
-      showError('Hãy chọn ngày mua trước khi dùng gói nhanh.');
-      fields.purchaseDate.focus();
+  function showFieldError(msgEl, inputEl, message) {
+    if (message) {
+      msgEl.textContent = message;
+      msgEl.hidden = false;
+      if (inputEl) inputEl.setAttribute("aria-invalid", "true");
+    } else {
+      msgEl.hidden = true;
+      msgEl.textContent = "";
+      if (inputEl) inputEl.removeAttribute("aria-invalid");
+    }
+  }
+
+  var latest = { result: null, input: null };
+
+  function render() {
+    var input = currentInput();
+    var errors = validate(input);
+    var result = calculate(input);
+    latest.result = result;
+    latest.input = input;
+
+    var priceErr = state.touched.price ? errors.price : null;
+    if (priceErr) {
+      el.priceMsg.textContent = priceErr;
+      el.priceMsg.className = "error";
+      el.price.setAttribute("aria-invalid", "true");
+    } else {
+      el.priceMsg.textContent = PRICE_HINT;
+      el.priceMsg.className = "hint";
+      el.price.removeAttribute("aria-invalid");
+    }
+    showFieldError(el.purchaseMsg, el.purchase, state.touched.purchase ? errors.purchase : null);
+    showFieldError(el.stopMsg, el.stop, state.touched.stop ? errors.stop : null);
+    showFieldError(el.expiryMsg, el.expiry, state.touched.expiry ? errors.expiry : null);
+
+    var anyTouched = Object.keys(state.touched).length > 0;
+    if (anyTouched && Object.keys(errors).length > 0) {
+      el.footNote.textContent = "Vui lòng kiểm tra lại các trường được đánh dấu bên trên.";
+      el.footNote.className = "foot-note is-error";
+      el.footNote.setAttribute("role", "alert");
+    } else {
+      el.footNote.textContent = DEFAULT_NOTE;
+      el.footNote.className = "foot-note";
+      el.footNote.removeAttribute("role");
+    }
+
+    if (el.purchase.value) { el.stop.min = el.purchase.value; el.expiry.min = el.purchase.value; }
+    else { el.stop.removeAttribute("min"); el.expiry.removeAttribute("min"); }
+    if (el.expiry.value) el.stop.max = el.expiry.value; else el.stop.removeAttribute("max");
+
+    var usedPct = result ? Math.min(100, Math.max(0, result.usedRatio * 100)) : 0;
+    var refundPct = result ? Math.round(100 - usedPct) : 0;
+
+    if (result) {
+      el.amount.innerHTML = "";
+      el.amount.appendChild(document.createTextNode(formatVND(result.refund)));
+      var cur = document.createElement("span");
+      cur.className = "cur";
+      cur.textContent = "₫";
+      el.amount.appendChild(cur);
+      el.amount.classList.remove("is-empty");
+      el.pct.hidden = false;
+      el.pct.textContent = refundPct + "% giá gói";
+      el.resultSub.textContent =
+        "Còn " + result.remainingDays + " / " + result.totalDays + " ngày chưa sử dụng";
+      el.usedVal.innerHTML = "";
+      el.usedVal.appendChild(document.createTextNode(result.usedDays + " ngày"));
+      var sub1 = document.createElement("span");
+      sub1.className = "sub";
+      sub1.textContent = "· " + Math.round(usedPct) + "%";
+      el.usedVal.appendChild(sub1);
+      el.leftVal.innerHTML = "";
+      el.leftVal.appendChild(document.createTextNode(result.remainingDays + " ngày"));
+      var sub2 = document.createElement("span");
+      sub2.className = "sub";
+      sub2.textContent = "· " + refundPct + "%";
+      el.leftVal.appendChild(sub2);
+      el.track.setAttribute(
+        "aria-label",
+        "Đã dùng " + Math.round(usedPct) + " phần trăm thời hạn gói",
+      );
+      el.trackKnob.hidden = false;
+      el.trackKnob.style.left = usedPct + "%";
+      el.sUsed.textContent = formatVND(result.usedFee) + " ₫";
+      el.sTotal.textContent = result.totalDays + " ngày";
+      el.sRefund.textContent = formatVND(result.refund) + " ₫";
+      el.stickyAmount.textContent = formatVND(result.refund) + " ₫";
+      el.stickyAmount.classList.remove("is-empty");
+    } else {
+      el.amount.textContent = "—";
+      el.amount.classList.add("is-empty");
+      el.pct.hidden = true;
+      el.resultSub.textContent = "Nhập đủ thông tin để xem số tiền hoàn.";
+      el.usedVal.textContent = "—";
+      el.leftVal.textContent = "—";
+      el.track.setAttribute("aria-label", "Chưa có dữ liệu");
+      el.trackKnob.hidden = true;
+      el.sUsed.textContent = "—";
+      el.sTotal.textContent = "—";
+      el.sRefund.textContent = "—";
+      el.stickyAmount.textContent = "—";
+      el.stickyAmount.classList.add("is-empty");
+    }
+
+    el.trackFill.style.width = usedPct + "%";
+    el.tlStart.textContent = formatDateVN(input.purchaseDate);
+    el.tlStop.textContent = "Ngừng: " + formatDateVN(input.stopDate);
+    el.tlEnd.textContent = formatDateVN(input.expiryDate);
+    el.sPrice.textContent = formatVND(input.price) + " ₫";
+
+    el.copyAmount.disabled = !result;
+    el.copySummary.disabled = !result;
+    el.stickyCopy.disabled = !result;
+
+    var n = Number(el.customAmount.value);
+    el.applyCustom.disabled = !el.customAmount.value || !(n > 0);
+  }
+
+  function setActivePreset(key) {
+    state.activePreset = key;
+    var chips = el.presets.querySelectorAll(".chip");
+    for (var i = 0; i < chips.length; i++) {
+      chips[i].setAttribute("aria-pressed", chips[i].dataset.days === key ? "true" : "false");
+    }
+  }
+
+  function applyDuration(amount, unit, key) {
+    if (!el.purchase.value) {
+      toast("Hãy chọn ngày mua trước", {
+        type: "error",
+        description: "Thời hạn gói được tính từ ngày mua.",
+      });
       return;
     }
-    const days = Number(chip.dataset.days);
-    fields.expiryDate.value = addDaysToDate(purchase, days);
-    tryCalculate();
+    var next = addDuration(el.purchase.value, amount, unit);
+    if (next) {
+      el.expiry.value = next;
+      setActivePreset(key);
+      state.touched.expiry = true;
+      render();
+    }
+  }
+
+  el.price.addEventListener("input", function () {
+    state.priceRaw = el.price.value;
+    var n = parsePrice(state.priceRaw);
+    el.price.value = state.priceRaw ? (n ? formatVND(n) : "") : "";
+    render();
   });
-});
+  el.price.addEventListener("blur", function () { state.touched.price = true; render(); });
 
-// Custom duration input
-const customDurationInput = document.getElementById('custom-duration');
-const customUnitSelect = document.getElementById('custom-unit');
-const btnCustomDuration = document.getElementById('btn-custom-duration');
+  el.purchase.addEventListener("change", function () { setActivePreset(null); render(); });
+  el.purchase.addEventListener("input", function () { setActivePreset(null); render(); });
+  el.purchase.addEventListener("blur", function () { state.touched.purchase = true; render(); });
 
-function applyCustomDuration() {
-  const purchase = fields.purchaseDate.value;
-  const value = customDurationInput.value;
-  const unit = customUnitSelect.value;
+  el.expiry.addEventListener("change", function () { setActivePreset(null); render(); });
+  el.expiry.addEventListener("input", function () { setActivePreset(null); render(); });
+  el.expiry.addEventListener("blur", function () { state.touched.expiry = true; render(); });
 
-  if (!purchase) {
-    showError('Hãy chọn ngày mua trước khi nhập gói nhanh.');
-    fields.purchaseDate.focus();
-    return;
-  }
-  if (!value || parseInt(value) < 1) {
-    showError('Vui lòng nhập số lượng hợp lệ.');
-    return;
-  }
+  el.stop.addEventListener("change", render);
+  el.stop.addEventListener("input", render);
+  el.stop.addEventListener("blur", function () { state.touched.stop = true; render(); });
 
-  const newExpiry = setCustomExpiry(purchase, value, unit);
-  if (newExpiry) {
-    fields.expiryDate.value = newExpiry;
-    tryCalculate();
-  }
-}
-
-btnCustomDuration.addEventListener('click', applyCustomDuration);
-
-customDurationInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    applyCustomDuration();
-  }
-});
-
-document.getElementById('btn-today').addEventListener('click', () => {
-  fields.stopDate.value = getTodayVN();
-  tryCalculate();
-});
-
-document.getElementById('btn-reset').addEventListener('click', () => {
-  form.reset();
-  clearError();
-  hideResults();
-  lastRefundRaw = 0;
-  Object.values(hints).forEach((h) => {
-    h.textContent = '';
-    h.classList.remove('active');
+  el.purchaseToday.addEventListener("click", function () {
+    el.purchase.value = todayVN();
+    state.touched.purchase = true;
+    setActivePreset(null);
+    render();
   });
-});
+  el.stopToday.addEventListener("click", function () {
+    el.stop.value = todayVN();
+    state.touched.stop = true;
+    render();
+  });
 
-document.getElementById('btn-copy').addEventListener('click', async () => {
-  const text = formatVND(lastRefundRaw);
-  try {
-    await navigator.clipboard.writeText(text);
-    const btn = document.getElementById('btn-copy');
-    btn.classList.add('copied');
-    setTimeout(() => btn.classList.remove('copied'), 2000);
-  } catch {
-    showError('Không thể sao chép — hãy chọn và copy thủ công.');
-  }
-});
+  el.presets.addEventListener("click", function (e) {
+    var btn = e.target.closest(".chip");
+    if (!btn) return;
+    applyDuration(Number(btn.dataset.days), "day", btn.dataset.days);
+  });
 
-// Format full summary for quick customer copy
-function formatSummaryText(data) {
-  if (!data) return '';
-  const originalPrice = data.usedFee + data.refundAmount;
-  return [
-    '=== KẾT QUẢ HOÀN TIỀN (Refund Tool) ===',
-    `Ngày mua: ${formatVNDate(data.purchase)}`,
-    `Ngày dừng sử dụng: ${formatVNDate(data.stop)}`,
-    `Ngày hết hạn gói: ${formatVNDate(data.expiry)}`,
-    '',
-    `Tổng giá trị gói: ${formatVND(originalPrice)}`,
-    `Tổng thời gian gói: ${data.totalDays} ngày`,
-    `Đã sử dụng: ${data.usedDays} ngày (${data.usedPct}%)`,
-    `Còn lại: ${data.remainingDays} ngày`,
-    '',
-    `Phí đã dùng: ${formatVND(data.usedFee)}`,
-    `Số tiền hoàn trả: ${formatVND(data.refundAmount)}`,
-    `Tỷ lệ hoàn tiền: ${data.refundPct}%`,
-    '',
-    `Cập nhật: ${data.calculatedAt}`,
-    '====================================='
-  ].join('\n');
-}
+  el.units.addEventListener("click", function (e) {
+    var btn = e.target.closest(".seg");
+    if (!btn) return;
+    state.customUnit = btn.dataset.unit;
+    var segs = el.units.querySelectorAll(".seg");
+    for (var i = 0; i < segs.length; i++) {
+      var on = segs[i] === btn;
+      segs[i].classList.toggle("is-active", on);
+      segs[i].setAttribute("aria-pressed", on ? "true" : "false");
+    }
+  });
 
-document.getElementById('btn-copy-summary').addEventListener('click', async () => {
-  if (!lastSummaryData) return;
+  el.customAmount.addEventListener("input", function () {
+    el.customAmount.value = el.customAmount.value.replace(/[^\d]/g, "");
+    render();
+  });
 
-  const text = formatSummaryText(lastSummaryData);
-  try {
-    await navigator.clipboard.writeText(text);
-    const btn = document.getElementById('btn-copy-summary');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '✓ Đã copy!';
-    setTimeout(() => {
-      btn.innerHTML = originalText;
-    }, 1800);
-  } catch {
-    showError('Không thể sao chép. Vui lòng copy thủ công.');
-  }
-});
+  el.applyCustom.addEventListener("click", function () {
+    applyDuration(Number(el.customAmount.value), state.customUnit, "custom");
+  });
 
-form.addEventListener('submit', (e) => {
-  e.preventDefault();
-  tryCalculate();
-  if (!resultContent.hidden) {
-    document.getElementById('result-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-});
+  el.copyAmount.addEventListener("click", function () {
+    if (!latest.result) return;
+    doCopy(
+      formatVND(latest.result.refund),
+      function () { flashCopied(el.copyAmount); },
+      "Đã sao chép số tiền hoàn",
+    );
+  });
+
+  el.stickyCopy.addEventListener("click", function () {
+    if (!latest.result) return;
+    doCopy(
+      formatVND(latest.result.refund),
+      function () { flashCopied(el.stickyCopy); },
+      "Đã sao chép số tiền hoàn",
+    );
+  });
+
+  el.copySummary.addEventListener("click", function () {
+    if (!latest.result) return;
+    doCopy(
+      summaryText(latest.result, latest.input),
+      function () {
+        flashCopied(el.copySummary, el.copySummaryText, "Đã sao chép tóm tắt", "Sao chép tóm tắt");
+      },
+      "Đã sao chép tóm tắt",
+    );
+  });
+
+  el.reset.addEventListener("click", function () {
+    state.priceRaw = "";
+    state.touched = {};
+    state.customUnit = "day";
+    el.price.value = "";
+    el.purchase.value = "";
+    el.expiry.value = "";
+    el.stop.value = "";
+    el.customAmount.value = "";
+    setActivePreset(null);
+    var segs = el.units.querySelectorAll(".seg");
+    for (var i = 0; i < segs.length; i++) {
+      var on = segs[i].dataset.unit === "day";
+      segs[i].classList.toggle("is-active", on);
+      segs[i].setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    render();
+    toast("Đã xoá toàn bộ dữ liệu");
+  });
+
+  render();
+
+  window.RefundTool = {
+    todayVN: todayVN,
+    addDuration: addDuration,
+    calculate: calculate,
+    validate: validate,
+    formatVND: formatVND,
+    copyText: copyText,
+  };
+})();
