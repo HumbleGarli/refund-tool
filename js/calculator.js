@@ -299,6 +299,14 @@
     }
   }
 
+  function syncConstraint(inputEl, name, value) {
+    if (value) {
+      if (inputEl.getAttribute(name) !== value) inputEl.setAttribute(name, value);
+    } else if (inputEl.hasAttribute(name)) {
+      inputEl.removeAttribute(name);
+    }
+  }
+
   var latest = { result: null, input: null };
 
   function render() {
@@ -333,9 +341,12 @@
       el.footNote.removeAttribute("role");
     }
 
-    if (el.purchase.value) { el.stop.min = el.purchase.value; el.expiry.min = el.purchase.value; }
-    else { el.stop.removeAttribute("min"); el.expiry.removeAttribute("min"); }
-    if (el.expiry.value) el.stop.max = el.expiry.value; else el.stop.removeAttribute("max");
+    // Avoid rewriting native date constraints unless the value actually changed.
+    // Chromium can reset an in-progress dd/mm/yyyy segment editor when min/max
+    // attributes are mutated while the user is typing the date.
+    syncConstraint(el.stop, "min", el.purchase.value);
+    syncConstraint(el.expiry, "min", el.purchase.value);
+    syncConstraint(el.stop, "max", el.expiry.value);
 
     var usedPct = result ? Math.min(100, Math.max(0, result.usedRatio * 100)) : 0;
     var refundPct = result ? Math.round(100 - usedPct) : 0;
@@ -438,16 +449,17 @@
   });
   el.price.addEventListener("blur", function () { state.touched.price = true; render(); });
 
+  // Native date controls (especially Chromium on Windows) emit `input` while
+  // the user is still composing day/month/year segments. Rendering at that
+  // point mutates constraints/validation and can reset the segment editor.
+  // `change` fires once a complete date is committed; `blur` handles errors.
   el.purchase.addEventListener("change", function () { setActivePreset(null); render(); });
-  el.purchase.addEventListener("input", function () { setActivePreset(null); render(); });
   el.purchase.addEventListener("blur", function () { state.touched.purchase = true; render(); });
 
   el.expiry.addEventListener("change", function () { setActivePreset(null); render(); });
-  el.expiry.addEventListener("input", function () { setActivePreset(null); render(); });
   el.expiry.addEventListener("blur", function () { state.touched.expiry = true; render(); });
 
   el.stop.addEventListener("change", render);
-  el.stop.addEventListener("input", render);
   el.stop.addEventListener("blur", function () { state.touched.stop = true; render(); });
 
   el.purchaseToday.addEventListener("click", function () {
