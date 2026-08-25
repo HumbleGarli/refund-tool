@@ -1,0 +1,71 @@
+/* Date grouping UX — keeps package cycle and service stop date conceptually separate. */
+
+.date-group-card {
+  border: 1px solid color-mix(in oklab, var(--border) 68%, transparent);
+  background: color-mix(in oklab, var(--surface-muted) 86%, var(--card));
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.date-group-copy {
+  margin: 0 0 18px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+
+.cycle-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.cycle-grid .field + .field {
+  margin-top: 0;
+}
+
+.date-group-card .presets {
+  margin-top: 18px;
+}
+
+.date-group-card .chip {
+  background: var(--card);
+  border: 1px solid color-mix(in oklab, var(--border) 48%, transparent);
+}
+
+.date-group-card .chip:hover {
+  background: var(--accent);
+  border-color: transparent;
+}
+
+.date-group-card .chip[aria-pressed="true"] {
+  border-color: transparent;
+}
+
+.date-group-card .custom-row {
+  margin-top: 16px;
+}
+
+.date-group-card .custom-amount,
+.date-group-card .segmented {
+  background: var(--card);
+}
+
+.date-group-card .seg.is-active {
+  background: var(--surface-muted);
+}
+
+@media (min-width: 640px) {
+  .cycle-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 639px) {
+  .date-group-card {
+    padding: 16px;
+  }
+
+  .date-group-copy {
+    margin-bottom: 16px;
+  }
+}
