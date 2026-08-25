@@ -114,6 +114,26 @@
     min-width: 0;
   }
 
+  /* WebKit bug 301648 (still present on iOS 26.5): date/time inputs with
+     horizontal padding can render wider than width:100%. Remove padding from
+     the actual control on mobile Safari/WebKit, then restore the visual inset
+     inside WebKit's native value/indicator boxes. Native date picking remains. */
+  @supports (-webkit-initial-letter: 1) {
+    .date-group-card input.date-field {
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    .date-group-card input.date-field::-webkit-date-and-time-value {
+      margin-inline-start: 12px;
+      text-align: start;
+    }
+
+    .date-group-card input.date-field::-webkit-calendar-picker-indicator {
+      margin-inline-end: 12px;
+    }
+  }
+
   .date-group-inline-note {
     margin-top: 16px;
   }
