@@ -1,6 +1,8 @@
 /* Date grouping UX — keeps package cycle and service stop date conceptually separate. */
 
 .date-group-card {
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid color-mix(in oklab, var(--border) 68%, transparent);
   background: color-mix(in oklab, var(--surface-muted) 86%, var(--card));
   border-radius: 14px;
@@ -16,11 +18,32 @@
 
 .cycle-grid {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
   gap: 20px;
+}
+
+.cycle-grid .field,
+.date-group-card .field {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .cycle-grid .field + .field {
   margin-top: 0;
+}
+
+/* Native date controls can have a large intrinsic min-content width on iOS/WebKit.
+   Explicit logical sizing lets them shrink with the nested card without disabling
+   the native date picker. */
+.date-group-card .date-field {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
 .date-group-inline-note {
@@ -75,6 +98,7 @@
 
 @media (max-width: 639px) {
   .date-group-card {
+    width: 100%;
     padding: 16px;
   }
 
@@ -82,7 +106,68 @@
     margin-bottom: 16px;
   }
 
+  .date-group-card .field-head {
+    min-width: 0;
+  }
+
+  .date-group-card .field-head > * {
+    min-width: 0;
+  }
+
   .date-group-inline-note {
     margin-top: 16px;
+  }
+
+  /* Two deliberate columns are more stable than flex intrinsic sizing on narrow screens. */
+  .date-group-card .presets {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    gap: 8px;
+  }
+
+  .date-group-card .chip {
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+  }
+
+  /* Keep the custom duration controls centered and intentionally wrapped. */
+  .date-group-card .custom-row {
+    display: grid;
+    grid-template-columns: auto 64px;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .date-group-card .custom-label {
+    grid-column: 1;
+    text-align: right;
+  }
+
+  .date-group-card .custom-amount {
+    grid-column: 2;
+    width: 64px;
+    min-width: 0;
+  }
+
+  .date-group-card .segmented {
+    grid-column: 1 / -1;
+    justify-self: center;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .date-group-card .seg {
+    min-width: 0;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .date-group-card .apply-btn {
+    grid-column: 1 / -1;
+    justify-self: center;
+    min-height: 44px;
   }
 }
