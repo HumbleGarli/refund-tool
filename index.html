@@ -22,6 +22,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/date-groups.css" />
   </head>
   <body>
     <header class="site-header">
@@ -71,16 +72,68 @@
           </section>
 
           <section class="section">
-            <p class="section-label">Thời gian sử dụng</p>
-            <div class="grid-2">
-              <div class="field">
-                <div class="field-head">
-                  <label for="purchase">Ngày mua gói</label>
-                  <button type="button" class="link-btn" id="purchase-today">Hôm nay</button>
+            <p class="section-label">Chu kỳ gói</p>
+            <div class="date-group-card">
+              <p class="date-group-copy">Xác định thời gian bắt đầu và kết thúc của gói.</p>
+
+              <div class="cycle-grid">
+                <div class="field">
+                  <div class="field-head">
+                    <label for="purchase">Ngày mua gói</label>
+                    <button type="button" class="link-btn" id="purchase-today">Hôm nay</button>
+                  </div>
+                  <input id="purchase" type="date" class="input date-field" />
+                  <p class="error" id="purchase-msg" role="alert" hidden></p>
                 </div>
-                <input id="purchase" type="date" class="input date-field" />
-                <p class="error" id="purchase-msg" role="alert" hidden></p>
+
+                <div class="field">
+                  <div class="field-head">
+                    <label for="expiry">Ngày hết hạn gói</label>
+                    <span class="meta-note">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
+                      Chọn nhanh bên dưới
+                    </span>
+                  </div>
+                  <input id="expiry" type="date" class="input date-field" />
+                  <p class="error" id="expiry-msg" role="alert" hidden></p>
+                </div>
               </div>
+
+              <div class="presets" id="presets">
+                <button type="button" class="chip" data-days="30" aria-pressed="false">30 ngày</button>
+                <button type="button" class="chip" data-days="90" aria-pressed="false">90 ngày</button>
+                <button type="button" class="chip" data-days="180" aria-pressed="false">6 tháng</button>
+                <button type="button" class="chip" data-days="365" aria-pressed="false">1 năm</button>
+              </div>
+
+              <div class="custom-row">
+                <span class="custom-label">Tuỳ chọn</span>
+                <input
+                  id="custom-amount"
+                  class="input custom-amount tabular"
+                  inputmode="numeric"
+                  placeholder="12"
+                  aria-label="Số lượng thời hạn tuỳ chọn"
+                />
+                <div class="segmented" id="units" role="group" aria-label="Đơn vị thời hạn">
+                  <button type="button" data-unit="day" class="seg is-active" aria-pressed="true">Ngày</button>
+                  <button type="button" data-unit="month" class="seg" aria-pressed="false">Tháng</button>
+                  <button type="button" data-unit="year" class="seg" aria-pressed="false">Năm</button>
+                </div>
+                <button type="button" class="apply-btn" id="apply-custom" disabled>Áp dụng</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <p class="section-label">Ngừng sử dụng</p>
+            <div class="date-group-card">
+              <p class="date-group-copy">Mốc khách dừng sử dụng trước khi chu kỳ gói kết thúc.</p>
               <div class="field">
                 <div class="field-head">
                   <label for="stop">Ngày ngừng sử dụng</label>
@@ -89,50 +142,6 @@
                 <input id="stop" type="date" class="input date-field" />
                 <p class="error" id="stop-msg" role="alert" hidden></p>
               </div>
-            </div>
-          </section>
-
-          <section class="section">
-            <p class="section-label">Thời hạn gói</p>
-            <div class="field">
-              <div class="field-head">
-                <label for="expiry">Ngày hết hạn gói</label>
-                <span class="meta-note">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
-                    <rect x="3" y="4" width="18" height="18" rx="2" />
-                    <line x1="16" y1="2" x2="16" y2="6" />
-                    <line x1="8" y1="2" x2="8" y2="6" />
-                    <line x1="3" y1="10" x2="21" y2="10" />
-                  </svg>
-                  Chọn nhanh bên dưới
-                </span>
-              </div>
-              <input id="expiry" type="date" class="input date-field" />
-              <p class="error" id="expiry-msg" role="alert" hidden></p>
-            </div>
-
-            <div class="presets" id="presets">
-              <button type="button" class="chip" data-days="30" aria-pressed="false">30 ngày</button>
-              <button type="button" class="chip" data-days="90" aria-pressed="false">90 ngày</button>
-              <button type="button" class="chip" data-days="180" aria-pressed="false">6 tháng</button>
-              <button type="button" class="chip" data-days="365" aria-pressed="false">1 năm</button>
-            </div>
-
-            <div class="custom-row">
-              <span class="custom-label">Tuỳ chọn</span>
-              <input
-                id="custom-amount"
-                class="input custom-amount tabular"
-                inputmode="numeric"
-                placeholder="12"
-                aria-label="Số lượng thời hạn tuỳ chọn"
-              />
-              <div class="segmented" id="units" role="group" aria-label="Đơn vị thời hạn">
-                <button type="button" data-unit="day" class="seg is-active" aria-pressed="true">Ngày</button>
-                <button type="button" data-unit="month" class="seg" aria-pressed="false">Tháng</button>
-                <button type="button" data-unit="year" class="seg" aria-pressed="false">Năm</button>
-              </div>
-              <button type="button" class="apply-btn" id="apply-custom" disabled>Áp dụng</button>
             </div>
           </section>
 
