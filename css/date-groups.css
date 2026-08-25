@@ -23,11 +23,23 @@
   margin-top: 0;
 }
 
+.date-group-inline-note {
+  margin: 18px 0 10px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--muted-foreground);
+}
+
 .date-group-card .presets {
-  margin-top: 18px;
+  margin-top: 0;
+  justify-content: center;
 }
 
 .date-group-card .chip {
+  flex: 0 0 auto;
+  min-width: 84px;
   background: var(--card);
   border: 1px solid color-mix(in oklab, var(--border) 48%, transparent);
 }
@@ -43,6 +55,7 @@
 
 .date-group-card .custom-row {
   margin-top: 16px;
+  justify-content: center;
 }
 
 .date-group-card .custom-amount,
@@ -67,5 +80,9 @@
 
   .date-group-copy {
     margin-bottom: 16px;
+  }
+
+  .date-group-inline-note {
+    margin-top: 16px;
   }
 }
