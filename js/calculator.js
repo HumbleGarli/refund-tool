@@ -7,7 +7,6 @@
   var DAY = 86400000;
   var REFUND_POLICY = Object.freeze({
     REPLACEMENT_DAYS: 7,
-    BASE_REFUND_RATE: 0.80,
     DECAY_POWER: 0.5,
   });
 
@@ -43,11 +42,15 @@
     if (unit === "day") {
       // inclusive package: N days total => expiry = purchase + N - 1
       d.setUTCDate(d.getUTCDate() + amount - 1);
-    } else if (unit === "month") {
-      // legacy source behaviour: plain calendar arithmetic, no minus-one-day
-      d.setUTCMonth(d.getUTCMonth() + amount);
     } else {
-      d.setUTCFullYear(d.getUTCFullYear() + amount);
+      // Calendar month/year presets include the purchase date as day 1,
+      // so the last usable day is one day before the same calendar date later.
+      if (unit === "month") {
+        d.setUTCMonth(d.getUTCMonth() + amount);
+      } else {
+        d.setUTCFullYear(d.getUTCFullYear() + amount);
+      }
+      d.setUTCDate(d.getUTCDate() - 1);
     }
     return d.toISOString().slice(0, 10);
   }
@@ -104,7 +107,6 @@
     var usedValue = P - remainingValue;
     var refund = 0;
     var policyKey = "expired";
-    var baseRefundRate = 0;
     var decayRatio = 0;
     var decayFactor = 0;
 
@@ -112,14 +114,12 @@
       if (D <= REFUND_POLICY.REPLACEMENT_DAYS || T <= REFUND_POLICY.REPLACEMENT_DAYS) {
         refund = remainingValue;
         policyKey = "replacement-window";
-        baseRefundRate = 1;
         decayRatio = 1;
         decayFactor = 1;
       } else {
         decayRatio = remainingDays / (T - REFUND_POLICY.REPLACEMENT_DAYS);
         decayFactor = Math.pow(decayRatio, REFUND_POLICY.DECAY_POWER);
-        baseRefundRate = REFUND_POLICY.BASE_REFUND_RATE;
-        refund = remainingValue * baseRefundRate * decayFactor;
+        refund = remainingValue * decayFactor;
         policyKey = "depreciated";
       }
     }
@@ -135,7 +135,6 @@
       remainingRatio: remainingRatio,
       usedValue: usedValue,
       remainingValue: remainingValue,
-      baseRefundRate: baseRefundRate,
       decayRatio: decayRatio,
       decayFactor: decayFactor,
       policyKey: policyKey,
@@ -191,7 +190,6 @@
       usedRatio: breakdown.usedDays / totalDays,
       effectiveRefundPercent: breakdown.effectiveRefundPercent,
       policyKey: breakdown.policyKey,
-      baseRefundRate: breakdown.baseRefundRate,
       decayFactor: breakdown.decayFactor,
     };
   }
@@ -318,11 +316,15 @@
     "Kết quả được tính tự động; ngày mua và ngày ngừng đều được tính là ngày sử dụng.";
   var PRICE_HINT = "Tổng số tiền khách đã thanh toán cho chính đơn hàng này.";
 
+  function dynamicDepreciationPercent(result) {
+    return result ? Math.max(0, (1 - result.decayFactor) * 100) : 0;
+  }
+
   function policyLabel(result) {
     if (!result) return "—";
     if (result.policyKey === "expired") return "Hết thời hạn";
     if (result.policyKey === "replacement-window") return "Đổi mới 1:1 · không khấu hao";
-    return "80% cơ sở + khấu hao";
+    return "Khấu hao động theo thời gian";
   }
 
   function policyDescription(result) {
@@ -333,7 +335,7 @@
     if (result.policyKey === "replacement-window") {
       return "Trong thời gian đổi mới 1:1 · Không áp dụng khấu hao — chỉ trừ thời gian đã sử dụng";
     }
-    return "Sau 7 ngày · Refund cơ sở 80% + khấu hao theo thời gian";
+    return "Sau 7 ngày · Chỉ áp dụng khấu hao động: " + formatPercent(dynamicDepreciationPercent(result));
   }
 
   function toast(message, opts) {
@@ -410,7 +412,7 @@
       "• Chính sách: " + policyLabel(result),
     ];
     if (result.policyKey === "depreciated") {
-      lines.push("• Refund cơ sở: " + formatPercent(REFUND_POLICY.BASE_REFUND_RATE * 100));
+      lines.push("• Khấu hao động: " + formatPercent(dynamicDepreciationPercent(result)));
     }
     lines.push("• Tỷ lệ Refund thực tế: " + formatPercent(result.effectiveRefundPercent));
     lines.push("➜ SỐ TIỀN HOÀN: " + formatVND(result.refund) + " ₫");
