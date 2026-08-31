@@ -1,10 +1,15 @@
 /* Refund Tool — static export logic (no dependencies).
-   Business logic is a 1:1 port of the approved React version. */
+   Date/input behaviour is preserved; refund policy v2 is isolated in pure helpers below. */
 (function () {
   "use strict";
 
   var TZ = "Asia/Ho_Chi_Minh";
   var DAY = 86400000;
+  var REFUND_POLICY = Object.freeze({
+    REPLACEMENT_DAYS: 7,
+    BASE_REFUND_RATE: 0.80,
+    DECAY_POWER: 0.5,
+  });
 
   /* ---------- date / money helpers ---------- */
 
@@ -51,6 +56,10 @@
     return new Intl.NumberFormat("vi-VN").format(Math.round(n));
   }
 
+  function formatPercent(n) {
+    return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(n) + "%";
+  }
+
   function formatDateVN(value) {
     var ts = parseDate(value);
     if (ts === null) return "—";
@@ -68,6 +77,76 @@
   }
 
   /* ---------- validation + calculation ---------- */
+
+  function roundMoney(value) {
+    return Math.round((value + Number.EPSILON) * 100) / 100;
+  }
+
+  function calculateRefundBreakdown(paidPrice, totalDays, usedDays) {
+    var P = Number(paidPrice);
+    var T = Number(totalDays);
+    var rawD = Number(usedDays);
+
+    if (
+      !Number.isFinite(P) ||
+      !Number.isFinite(T) ||
+      !Number.isFinite(rawD) ||
+      P < 0 ||
+      T <= 0
+    ) {
+      throw new Error("Invalid refund input");
+    }
+
+    var D = Math.max(0, Math.min(rawD, T));
+    var remainingDays = T - D;
+    var remainingRatio = remainingDays / T;
+    var remainingValue = P * remainingRatio;
+    var usedValue = P - remainingValue;
+    var refund = 0;
+    var policyKey = "expired";
+    var baseRefundRate = 0;
+    var decayRatio = 0;
+    var decayFactor = 0;
+
+    if (D < T) {
+      if (D <= REFUND_POLICY.REPLACEMENT_DAYS || T <= REFUND_POLICY.REPLACEMENT_DAYS) {
+        refund = remainingValue;
+        policyKey = "replacement-window";
+        baseRefundRate = 1;
+        decayRatio = 1;
+        decayFactor = 1;
+      } else {
+        decayRatio = remainingDays / (T - REFUND_POLICY.REPLACEMENT_DAYS);
+        decayFactor = Math.pow(decayRatio, REFUND_POLICY.DECAY_POWER);
+        baseRefundRate = REFUND_POLICY.BASE_REFUND_RATE;
+        refund = remainingValue * baseRefundRate * decayFactor;
+        policyKey = "depreciated";
+      }
+    }
+
+    var finalRefund = Math.max(0, Math.min(P, roundMoney(refund)));
+    var effectiveRefundPercent = P > 0 ? (finalRefund / P) * 100 : 0;
+
+    return {
+      paidPrice: P,
+      totalDays: T,
+      usedDays: D,
+      remainingDays: remainingDays,
+      remainingRatio: remainingRatio,
+      usedValue: usedValue,
+      remainingValue: remainingValue,
+      baseRefundRate: baseRefundRate,
+      decayRatio: decayRatio,
+      decayFactor: decayFactor,
+      policyKey: policyKey,
+      refund: finalRefund,
+      effectiveRefundPercent: effectiveRefundPercent,
+    };
+  }
+
+  function calculateRefund(paidPrice, totalDays, usedDays) {
+    return calculateRefundBreakdown(paidPrice, totalDays, usedDays).refund;
+  }
 
   function validate(input) {
     var errors = {};
@@ -100,17 +179,20 @@
 
     var totalDays = diffDays(p, e) + 1;
     var usedDays = diffDays(p, s) + 1;
-    var remainingDays = totalDays - usedDays;
-    var usedFee = (usedDays / totalDays) * input.price;
-    var refund = input.price - usedFee;
+    var breakdown = calculateRefundBreakdown(input.price, totalDays, usedDays);
 
     return {
       totalDays: totalDays,
-      usedDays: usedDays,
-      remainingDays: remainingDays,
-      usedFee: usedFee,
-      refund: refund,
-      usedRatio: usedDays / totalDays,
+      usedDays: breakdown.usedDays,
+      remainingDays: breakdown.remainingDays,
+      usedFee: breakdown.usedValue,
+      remainingValue: breakdown.remainingValue,
+      refund: breakdown.refund,
+      usedRatio: breakdown.usedDays / totalDays,
+      effectiveRefundPercent: breakdown.effectiveRefundPercent,
+      policyKey: breakdown.policyKey,
+      baseRefundRate: breakdown.baseRefundRate,
+      decayFactor: breakdown.decayFactor,
     };
   }
 
@@ -162,6 +244,24 @@
 
   var $ = function (id) { return document.getElementById(id); };
 
+  function ensureBreakdownRows() {
+    var summary = document.querySelector(".summary");
+    if (!summary || $("s-effective")) return;
+    summary.innerHTML =
+      '<div class="srow"><span>Giá khách đã trả</span><b class="tabular" id="s-price">0 ₫</b></div>' +
+      '<div class="srow"><span>Tổng thời hạn</span><b class="tabular" id="s-total">—</b></div>' +
+      '<div class="srow"><span>Đã sử dụng</span><b class="tabular" id="s-used-days">—</b></div>' +
+      '<div class="srow"><span>Giá trị thời gian đã dùng</span><b class="tabular is-warning" id="s-used">—</b></div>' +
+      '<div class="srow"><span>Số ngày còn lại</span><b class="tabular" id="s-remaining-days">—</b></div>' +
+      '<div class="srow"><span>Giá trị thời gian còn lại</span><b class="tabular" id="s-remaining-value">—</b></div>' +
+      '<div class="srow"><span>Chính sách</span><b id="s-policy">—</b></div>' +
+      '<div class="srow"><span>Tỷ lệ Refund thực tế</span><b class="tabular" id="s-effective">—</b></div>' +
+      '<div class="sdiv"></div>' +
+      '<div class="srow"><span>Số tiền Refund</span><b class="tabular is-success" id="s-refund">—</b></div>';
+  }
+
+  ensureBreakdownRows();
+
   var el = {
     price: $("price"),
     purchase: $("purchase"),
@@ -192,6 +292,11 @@
     sPrice: $("s-price"),
     sUsed: $("s-used"),
     sTotal: $("s-total"),
+    sUsedDays: $("s-used-days"),
+    sRemainingDays: $("s-remaining-days"),
+    sRemainingValue: $("s-remaining-value"),
+    sPolicy: $("s-policy"),
+    sEffective: $("s-effective"),
     sRefund: $("s-refund"),
     copyAmount: $("copy-amount"),
     copySummary: $("copy-summary"),
@@ -211,7 +316,25 @@
   var timers = [];
   var DEFAULT_NOTE =
     "Kết quả được tính tự động; ngày mua và ngày ngừng đều được tính là ngày sử dụng.";
-  var PRICE_HINT = "Tổng số tiền khách đã thanh toán cho gói.";
+  var PRICE_HINT = "Tổng số tiền khách đã thanh toán cho chính đơn hàng này.";
+
+  function policyLabel(result) {
+    if (!result) return "—";
+    if (result.policyKey === "expired") return "Hết thời hạn";
+    if (result.policyKey === "replacement-window") return "Đổi mới 1:1 · không khấu hao";
+    return "80% cơ sở + khấu hao";
+  }
+
+  function policyDescription(result) {
+    if (!result) return "";
+    if (result.policyKey === "expired") {
+      return "Gói đã hết thời hạn · Refund = 0";
+    }
+    if (result.policyKey === "replacement-window") {
+      return "Trong thời gian đổi mới 1:1 · Không áp dụng khấu hao — chỉ trừ thời gian đã sử dụng";
+    }
+    return "Sau 7 ngày · Refund cơ sở 80% + khấu hao theo thời gian";
+  }
 
   function toast(message, opts) {
     opts = opts || {};
@@ -274,17 +397,24 @@
 
   function summaryText(result, input) {
     if (!result) return "";
-    return [
+    var lines = [
       "TÍNH TIỀN HOÀN GÓI DỊCH VỤ",
-      "• Giá gói: " + formatVND(input.price) + " ₫",
+      "• Giá khách đã trả: " + formatVND(input.price) + " ₫",
       "• Ngày mua: " + formatDateVN(input.purchaseDate),
       "• Ngày hết hạn: " + formatDateVN(input.expiryDate),
       "• Ngày ngừng sử dụng: " + formatDateVN(input.stopDate),
       "• Tổng thời hạn: " + result.totalDays + " ngày",
       "• Đã sử dụng: " + result.usedDays + " ngày (" + formatVND(result.usedFee) + " ₫)",
       "• Còn lại: " + result.remainingDays + " ngày",
-      "➜ SỐ TIỀN HOÀN: " + formatVND(result.refund) + " ₫",
-    ].join("\n");
+      "• Giá trị thời gian còn lại: " + formatVND(result.remainingValue) + " ₫",
+      "• Chính sách: " + policyLabel(result),
+    ];
+    if (result.policyKey === "depreciated") {
+      lines.push("• Refund cơ sở: " + formatPercent(REFUND_POLICY.BASE_REFUND_RATE * 100));
+    }
+    lines.push("• Tỷ lệ Refund thực tế: " + formatPercent(result.effectiveRefundPercent));
+    lines.push("➜ SỐ TIỀN HOÀN: " + formatVND(result.refund) + " ₫");
+    return lines.join("\n");
   }
 
   function showFieldError(msgEl, inputEl, message) {
@@ -349,7 +479,7 @@
     syncConstraint(el.stop, "max", el.expiry.value);
 
     var usedPct = result ? Math.min(100, Math.max(0, result.usedRatio * 100)) : 0;
-    var refundPct = result ? Math.round(100 - usedPct) : 0;
+    var remainingPct = result ? Math.max(0, 100 - usedPct) : 0;
 
     if (result) {
       el.amount.innerHTML = "";
@@ -360,9 +490,8 @@
       el.amount.appendChild(cur);
       el.amount.classList.remove("is-empty");
       el.pct.hidden = false;
-      el.pct.textContent = refundPct + "% giá gói";
-      el.resultSub.textContent =
-        "Còn " + result.remainingDays + " / " + result.totalDays + " ngày chưa sử dụng";
+      el.pct.textContent = formatPercent(result.effectiveRefundPercent) + " giá gói";
+      el.resultSub.textContent = policyDescription(result);
       el.usedVal.innerHTML = "";
       el.usedVal.appendChild(document.createTextNode(result.usedDays + " ngày"));
       var sub1 = document.createElement("span");
@@ -373,7 +502,7 @@
       el.leftVal.appendChild(document.createTextNode(result.remainingDays + " ngày"));
       var sub2 = document.createElement("span");
       sub2.className = "sub";
-      sub2.textContent = "· " + refundPct + "%";
+      sub2.textContent = "· " + Math.round(remainingPct) + "%";
       el.leftVal.appendChild(sub2);
       el.track.setAttribute(
         "aria-label",
@@ -383,6 +512,11 @@
       el.trackKnob.style.left = usedPct + "%";
       el.sUsed.textContent = formatVND(result.usedFee) + " ₫";
       el.sTotal.textContent = result.totalDays + " ngày";
+      el.sUsedDays.textContent = result.usedDays + " ngày";
+      el.sRemainingDays.textContent = result.remainingDays + " ngày";
+      el.sRemainingValue.textContent = formatVND(result.remainingValue) + " ₫";
+      el.sPolicy.textContent = policyLabel(result);
+      el.sEffective.textContent = formatPercent(result.effectiveRefundPercent);
       el.sRefund.textContent = formatVND(result.refund) + " ₫";
       el.stickyAmount.textContent = formatVND(result.refund) + " ₫";
       el.stickyAmount.classList.remove("is-empty");
@@ -397,6 +531,11 @@
       el.trackKnob.hidden = true;
       el.sUsed.textContent = "—";
       el.sTotal.textContent = "—";
+      el.sUsedDays.textContent = "—";
+      el.sRemainingDays.textContent = "—";
+      el.sRemainingValue.textContent = "—";
+      el.sPolicy.textContent = "—";
+      el.sEffective.textContent = "—";
       el.sRefund.textContent = "—";
       el.stickyAmount.textContent = "—";
       el.stickyAmount.classList.add("is-empty");
@@ -420,7 +559,10 @@
     state.activePreset = key;
     var chips = el.presets.querySelectorAll(".chip");
     for (var i = 0; i < chips.length; i++) {
-      chips[i].setAttribute("aria-pressed", chips[i].dataset.days === key ? "true" : "false");
+      chips[i].setAttribute(
+        "aria-pressed",
+        chips[i].dataset.durationKey === key ? "true" : "false",
+      );
     }
   }
 
@@ -477,7 +619,11 @@
   el.presets.addEventListener("click", function (e) {
     var btn = e.target.closest(".chip");
     if (!btn) return;
-    applyDuration(Number(btn.dataset.days), "day", btn.dataset.days);
+    var amount = Number(btn.dataset.amount);
+    var unit = btn.dataset.unit;
+    var key = btn.dataset.durationKey;
+    if (!(amount > 0) || (unit !== "day" && unit !== "month" && unit !== "year")) return;
+    applyDuration(amount, unit, key);
   });
 
   el.units.addEventListener("click", function (e) {
@@ -559,5 +705,8 @@
     validate: validate,
     formatVND: formatVND,
     copyText: copyText,
+    refundPolicy: REFUND_POLICY,
+    calculateRefund: calculateRefund,
+    calculateRefundBreakdown: calculateRefundBreakdown,
   };
 })();
