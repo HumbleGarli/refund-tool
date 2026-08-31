@@ -1,30 +1,64 @@
 # Refund Tool
 
-Công cụ tính số tiền hoàn lại (refund) cho khách hàng khi sản phẩm lỗi, dựa trên thời gian chưa sử dụng của gói.
+Công cụ tính số tiền hoàn lại (refund) cho khách hàng khi sản phẩm lỗi, dựa trên **giá thực tế khách đã thanh toán** và thời gian sử dụng thực tế của gói.
 
 ## Cách sử dụng
 
 1. Mở file `index.html` bằng trình duyệt (Chrome, Edge, Firefox…).
-2. Nhập **Ngày mua**, **Ngày hết hạn gói**, **Ngày dừng sử dụng** và **Tổng giá trị gói**.
-3. Nhấn **Tính refund** để xem kết quả.
+2. Nhập **Ngày mua**, **Ngày hết hạn gói**, **Ngày dừng sử dụng** và **Tổng giá trị thực tế khách đã thanh toán**.
+3. Website tự tính số tiền refund theo chính sách bên dưới.
 
-## Công thức
+## Chính sách Refund
 
+Các tham số nghiệp vụ được khai báo tập trung trong `js/calculator.js`:
+
+```text
+REPLACEMENT_DAYS = 7
+BASE_REFUND_RATE = 0.80
+DECAY_POWER = 0.5
 ```
-Tổng số ngày gói  = Ngày hết hạn − Ngày mua + 1        (tính cả 2 đầu)
-Số ngày đã dùng   = Ngày dừng − Ngày mua + 1          (tính cả 2 đầu)
-Số ngày còn lại   = Tổng số ngày gói − Số ngày đã dùng
-Phí đã sử dụng    = (Số ngày đã dùng / Tổng số ngày gói) × Tổng giá trị
-Số tiền refund    = (Số ngày còn lại / Tổng số ngày gói) × Tổng giá trị
+
+Website luôn tính thời hạn từ ngày mua và ngày hết hạn thực tế, không mặc định gói là 30 ngày.
+
+### Trong 7 ngày đầu
+
+Không áp dụng tỷ lệ 80% hoặc khấu hao. Nếu không thể đổi mới 1:1, chỉ trừ phần giá trị thời gian khách đã sử dụng:
+
+```text
+Refund = PaidPrice × (TotalDays - UsedDays) / TotalDays
 ```
 
-### Ví dụ
+Quy tắc này cũng được dùng cho toàn bộ vòng đời của gói có `TotalDays <= 7`.
 
-- Ngày mua: 01/01/2026
-- Ngày hết hạn: 30/01/2026 → **30 ngày**
-- Ngày dừng: 11/01/2026 → **11 ngày** đã dùng
-- Giá gói: 300.000đ
-- Refund: **190.000đ**
+### Sau 7 ngày
+
+Khi `7 < UsedDays < TotalDays`:
+
+```text
+RemainingRatio = (TotalDays - UsedDays) / TotalDays
+DecayRatio     = (TotalDays - UsedDays) / (TotalDays - 7)
+DecayFactor    = DecayRatio ^ 0.5
+
+Refund = PaidPrice × RemainingRatio × 0.80 × DecayFactor
+```
+
+Khách sử dụng càng lâu thì số tiền refund tiếp tục giảm theo hệ số khấu hao.
+
+### Khi hết thời hạn
+
+Nếu `UsedDays >= TotalDays` thì `Refund = 0`.
+
+Refund cuối cùng luôn được giới hạn trong khoảng từ `0` đến giá thực tế khách đã trả và chỉ làm tròn ở bước cuối.
+
+## Cách tính số ngày
+
+```text
+Tổng số ngày gói = Ngày hết hạn − Ngày mua + 1
+Số ngày đã dùng  = Ngày dừng − Ngày mua + 1
+Số ngày còn lại  = Tổng số ngày gói − Số ngày đã dùng
+```
+
+Ngày mua và ngày ngừng đều được tính là ngày sử dụng, giữ nguyên cách tính inclusive của phiên bản trước.
 
 ## Múi giờ
 
@@ -32,7 +66,7 @@ Mọi phép tính ngày theo chuẩn lịch **Asia/Ho_Chi_Minh** (UTC+7, giờ V
 
 ## Cấu trúc
 
-```
+```text
 refund tool/
 ├── index.html
 ├── css/style.css
