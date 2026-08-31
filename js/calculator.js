@@ -559,7 +559,10 @@
     state.activePreset = key;
     var chips = el.presets.querySelectorAll(".chip");
     for (var i = 0; i < chips.length; i++) {
-      chips[i].setAttribute("aria-pressed", chips[i].dataset.days === key ? "true" : "false");
+      chips[i].setAttribute(
+        "aria-pressed",
+        chips[i].dataset.durationKey === key ? "true" : "false",
+      );
     }
   }
 
@@ -616,7 +619,11 @@
   el.presets.addEventListener("click", function (e) {
     var btn = e.target.closest(".chip");
     if (!btn) return;
-    applyDuration(Number(btn.dataset.days), "day", btn.dataset.days);
+    var amount = Number(btn.dataset.amount);
+    var unit = btn.dataset.unit;
+    var key = btn.dataset.durationKey;
+    if (!(amount > 0) || (unit !== "day" && unit !== "month" && unit !== "year")) return;
+    applyDuration(amount, unit, key);
   });
 
   el.units.addEventListener("click", function (e) {
