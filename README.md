@@ -14,7 +14,6 @@ Các tham số nghiệp vụ được khai báo tập trung trong `js/calculator
 
 ```text
 REPLACEMENT_DAYS = 7
-BASE_REFUND_RATE = 0.80
 DECAY_POWER = 0.5
 ```
 
@@ -22,7 +21,7 @@ Website luôn tính thời hạn từ ngày mua và ngày hết hạn thực t�
 
 ### Trong 7 ngày đầu
 
-Không áp dụng tỷ lệ 80% hoặc khấu hao. Nếu không thể đổi mới 1:1, chỉ trừ phần giá trị thời gian khách đã sử dụng:
+Không áp dụng khấu hao. Nếu không thể đổi mới 1:1, chỉ trừ phần giá trị thời gian khách đã sử dụng:
 
 ```text
 Refund = PaidPrice × (TotalDays - UsedDays) / TotalDays
@@ -39,10 +38,10 @@ RemainingRatio = (TotalDays - UsedDays) / TotalDays
 DecayRatio     = (TotalDays - UsedDays) / (TotalDays - 7)
 DecayFactor    = DecayRatio ^ 0.5
 
-Refund = PaidPrice × RemainingRatio × 0.80 × DecayFactor
+Refund = PaidPrice × RemainingRatio × DecayFactor
 ```
 
-Khách sử dụng càng lâu thì số tiền refund tiếp tục giảm theo hệ số khấu hao.
+Không còn tỷ lệ khấu trừ cố định 80%. Khách sử dụng càng lâu thì số tiền refund tiếp tục giảm theo hệ số khấu hao động.
 
 ### Khi hết thời hạn
 
@@ -58,7 +57,7 @@ Số ngày đã dùng  = Ngày dừng − Ngày mua + 1
 Số ngày còn lại  = Tổng số ngày gói − Số ngày đã dùng
 ```
 
-Ngày mua và ngày ngừng đều được tính là ngày sử dụng, giữ nguyên cách tính inclusive của phiên bản trước.
+Ngày mua và ngày ngừng đều được tính là ngày sử dụng, giữ nguyên cách tính inclusive của phiên bản trước. Khi chọn thời hạn theo tháng/năm, ngày hết hạn là một ngày trước cùng ngày lịch ở chu kỳ kế tiếp để tránh cộng dư một ngày.
 
 ## Múi giờ
 
